@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     # Create the learning environment
@@ -18,9 +19,8 @@ if __name__ == "__main__":
         index = (continues_state - env.observation_space.low) / observation_step_size
         return tuple(index.astype(np.int))
 
-    EPISODES_NUM = 25000
-    STEPS_MAX = 100
-    SHOW_EVERY = 2000
+    EPISODES_NUM = 10000
+    SHOW_EVERY = 1000
 
     LEARNING_RATE = 0.1
     DISCOUNT_RATE = 0.99
@@ -30,6 +30,8 @@ if __name__ == "__main__":
     EXPLORATION_RATE_DECAY = 0.001
 
     exploration_rate = 1
+    episode_rewards = []
+    episode_rewards_aggr = {"episode": [], "average": [], "min": [], "max": []}
 
     for episode in range(EPISODES_NUM):
         print(f"Episode: {episode}")
@@ -41,6 +43,7 @@ if __name__ == "__main__":
         state = env.reset()
         state_index = get_state_index(state)
         done = False
+        episode_reward = 0
 
         while not done:
             exploration_threshold = np.random.uniform(0, 1)
@@ -50,6 +53,7 @@ if __name__ == "__main__":
                 action = env.action_space.sample()
 
             new_state, reward, done, info = env.step(action)
+            episode_reward += reward
             new_state_index = get_state_index(new_state)
 
             if render:
@@ -72,4 +76,30 @@ if __name__ == "__main__":
             EXPLORATION_RATE_MAX - EXPLORATION_RATE_MIN
         ) * np.exp(-EXPLORATION_RATE_DECAY * episode)
 
+        episode_rewards.append(episode_reward)
+
+        if not episode % SHOW_EVERY:
+            average_reward = sum(episode_rewards[-SHOW_EVERY:]) / len(
+                episode_rewards[-SHOW_EVERY:]
+            )
+            episode_rewards_aggr["episode"].append(episode)
+            episode_rewards_aggr["average"].append(average_reward)
+            episode_rewards_aggr["min"].append(min(episode_rewards[-SHOW_EVERY:]))
+            episode_rewards_aggr["max"].append(max(episode_rewards[-SHOW_EVERY:]))
+            print(episode_rewards_aggr)
+
     env.close()
+
+    plt.figure()
+    plt.plot(
+        episode_rewards_aggr["episode"],
+        episode_rewards_aggr["average"],
+        label="average",
+    )
+    plt.plot(episode_rewards_aggr["episode"], episode_rewards_aggr["min"], label="min")
+    plt.plot(episode_rewards_aggr["episode"], episode_rewards_aggr["max"], label="max")
+    plt.title("Learning metrics")
+    plt.xlabel("Episode")
+    plt.ylabel("Reward")
+    plt.legend(loc=4)
+    plt.show()
